@@ -52,55 +52,66 @@ for t = 1:T
 end
 policy = cell(1, T);
 for t = 1:T
-  policy{t}.asset = assetGrid(:, t); %policy{t}(:, 1) = assetGrid(:, t);
+  policy{t}(:,1) = assetGrid(:, t);
 end
 
 %% Step 3: Solve the Model using Euler Equation
 
 % Step 3.1: Set up the value function and policy function correspondences
-% All infomation is stored in a cell variable policy. In the {1,t}'e entry of policy, it stores a
-% struct that contains the asset grids, the value funcion, and two policy functions such that the 
-% grid points of assets are 1-1 mapped onto the the value funcion, and two policy functions.
+
+% All infomation is stored in a cell variable policy. 
+% In the {1,t}'e entry of policy, it stores a matrix (gridN by 4) that contains the asset grids, 
+% the value funcion, and two policy functions in period t.
+
+% The fist col is asset grid points, the second col is the value function, the third col is the 
+% optimal consumption funcion, and the fourth col is the optimal next period asset holdings.
 
 for t = 1:T
-  policy{t}.value    = NaN(gridN, 1);
-  policy{t}.A_tplus1 = NaN(gridN, 1);
-  policy{t}.consum   = NaN(gridN, 1);
+  policy{t}(:,2)  = NaN(gridN, 1);
+  policy{t}(:,3)  = NaN(gridN, 1);
+  policy{t}(:,4)  = NaN(gridN, 1);
 end
 
 % Step 3.2: Solve recursively the consumer's problem, starting at time T and stepping backward
-% The most important step is to search all possible a_{t+1} to maximize RHS in the Bellman equation.
-% Here, I incorporate linear interpolation of the value function and fminbnd function in matlab.
+% The most important step is to solve the Euler equation for any given start-of-period asset values.
+% Here, I first define the Euler Residual Function, then use fzero to find its root.
 
 for t=T:-1:1
   if t == T
-    policy{t}.value = fun_utility(policy{t}.asset, gamma);
-    policy{t}.consum = policy{t}.asset;
-    policy{t}.A_tplus1 = zeros(gridN, 1);
+    policy{t}(:,2) = fun_utility(policy{t}(:,1), gamma);
+    policy{t}(:,3) = policy{t}(:,1);
+    policy{t}(:,4) = zeros(gridN, 1);
   else  
 
-    alpha = beta^(1/gamma) * R^((1-gamma)/gamma);
-    policy{t}.consum = (1-alpha)/(1-alpha^(T-t+1)) .* policy{t}.asset;
-    policy{t}.A_tplus1 = R .* (policy{t}.asset - policy{t}.consum);
-    policy{t}.value = fun_utility(policy{t}.consum, gamma) + ...
-          beta.*interp1(policy{t+1}.asset, policy{t+1}.value, policy{t}.A_tplus1, interpMethod, 'extrap');
-%     for itx = 1:gridN
-%       A = policy{t}.asset(itx);
-%       lbc = minCons;                     % lower bound for consumption this period
-%       ubc = A - minCons*((1-1/R^(T-t))/(R-1));  % upper bound for consumption this period
-%       bndForSol = [minCons, ubc];          % if the Euler equation has a soluton it will be within these bounds
-%       Euler_residual = @(c) fun_utility_D(c, gamma) - beta*R*fun_utility_D(R*(A - c), gamma);
-%       if ubc<= lbc || (sign(Euler_residual(ubc)) * sign(Euler_residual(lbc)) == 1)
-%         policy{t}.consum(itx) = minCons;
-%       else
-%         policy{t}.consum(itx) = fzero(Euler_residual, bndForSol, optimset('TolX',tol));
-% 
-%         policy{t}.A_tplus1(itx) = R * (A - policy{t}.consum(itx));
-%         policy{t}.value(itx) = fun_utility(policy{t}.consum(itx), gamma) + ...
-%           beta*interp1(policy{t+1}.asset, policy{t+1}.value, policy{t}.A_tplus1(itx), interpMethod, 'extrap');
-%       end
-%     end % end the loop for all discretized state space
+%     alpha = beta^(1/gamma) * R^((1-gamma)/gamma);
+%     policy{t}.consum = (1-alpha)/(1-alpha^(T-t+1)) .* policy{t}.asset;
+%     policy{t}.A_tplus1 = R .* (policy{t}.asset - policy{t}.consum);
+%     policy{t}.value = fun_utility(policy{t}.consum, gamma) + ...
+%           beta.*interp1(policy{t+1}.asset, policy{t+1}.value, policy{t}.A_tplus1, interpMethod, 'extrap');
 
+    for itx = 1:gridN
+      A = policy{t}(itx, 1);                    % state variable: start-of-period asset holdings
+      lbc = minCons;                            % lower bound for choice variable: consumption this period
+      ubc = A - minCons*((1-1/R^(T-t))/(R-1));  % upper bound for choice variable: consumption this period
+      Euler_residual = @(c) fun_utility_D(c, gamma) - ...
+        beta*R*fun_utility_D(interp1(policy{t+1}(:, 1), policy{t+1}(:,3), R*(A-c), interpMethod, "extrap"), gamma);
+      if ubc<= lbc
+        policy{t}(itx,3) = minCons;
+      end
+      if (sign(Euler_residual(ubc)) * sign(Euler_residual(lbc)) == -1)
+        policy{t}(itx,3) = fzero(Euler_residual, [lbc ubc], optimset('TolX',tol));
+      else
+        warning('In period %d, asset grid number %d calculation, the function values at the interval endpoints must differ in sign.', t, itx);
+        if itx==1
+          policy{t}(itx,3) = minCons;
+        else
+          policy{t}(itx,3) = fzero(Euler_residual, ubc, optimset('TolX',tol));
+        end
+      end
+      policy{t}(itx,4) = R * (A - policy{t}(itx,3));
+      policy{t}(itx,2) = fun_utility(policy{t}(itx,3), gamma) + ...
+        beta*interp1(policy{t+1}(:,1), policy{t+1}(:,2), policy{t}(itx,4), interpMethod, 'extrap');
+    end % end the loop for all discretized state space
   end % end if t==T or t~=T
 end % end the loop for all t from T backwards to 1
 
@@ -112,9 +123,9 @@ asset  = NaN(1, T+1); % column j value is the asset level at start of each perio
 
 asset(1, 1) = a0;   
 for t = 1:1:T                     % loop through time periods for a particular individual
-    value(1, t)   = interp1(policy{t}.asset(:,1), policy{t}.value(:,1), asset(1, t), interpMethod, 'extrap');                               
-    asset(1, t+1) = interp1(policy{t}.asset(:,1), policy{t}.A_tplus1(:,1), asset(1, t), interpMethod, 'extrap'); 
-    consum(1, t)  = interp1(policy{t}.asset(:,1), policy{t}.consum(:,1), asset(1, t), interpMethod, 'extrap'); 
+    value(1, t)   = interp1(policy{t}(2:end,1), policy{t}(2:end,2), asset(1, t), interpMethod, 'extrap');                               
+    asset(1, t+1) = interp1(policy{t}(2:end,1), policy{t}(2:end,4), asset(1, t), interpMethod, 'extrap'); 
+    consum(1, t)  = interp1(policy{t}(2:end,1), policy{t}(2:end,3), asset(1, t), interpMethod, 'extrap'); 
 end   
 
 figure(1)
@@ -144,7 +155,7 @@ for t = 1:T
 end
 
 fig5 = figure(5);
-consum_comp_nvsa = plot(1:T,consum, 1:T,consum_anal);
+consum_comp_nvsa = plot(1:T,consum,'b--o', 1:T,consum_anal,'LineWidth',1);
 xlabel('Age')
 ylabel('Consumption')
 title('Time path of consumption')
@@ -159,7 +170,7 @@ for t=2:(T+1)
 end
 
 fig6 = figure(6);
-asset_comp_nvsa = plot(1:T+1,asset, 1:T+1,asset_anal);
+asset_comp_nvsa = plot(1:T+1, asset,'b--o', 1:T+1, asset_anal,'LineWidth',1);
 xlabel('Age')
 ylabel('Asset Levels')
 title('Time path of Asset Holding')
