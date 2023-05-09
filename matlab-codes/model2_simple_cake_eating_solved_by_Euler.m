@@ -1,5 +1,5 @@
 %% The Cake-Eating Problem and Its Numerical Solution
-% See more details in Part 1 and 2 of the corresponding replication file.
+% See more details in Part 1, 2 and 3 of the replication file.
 
 % DESCRIPTION
 % This program solves and simulates a finite period consumption and saving problem. 
@@ -8,8 +8,8 @@
 
 % Numerical Algorithm
 % The problem is solved by backward induction using the Euler equation 
-% linking this period consumption and next period consumption to locate the choice that 
-% maximises the value function in each period.
+%   linking this period consumption and next period consumption to locate the choice that 
+%   maximises the value function in each period.
 
 %% Step 1: Set up Parameters
 

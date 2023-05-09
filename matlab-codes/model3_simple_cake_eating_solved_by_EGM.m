@@ -1,5 +1,5 @@
 %% The Cake-Eating Problem and Its Numerical Solution
-% See more details in Part 1 and 2 of the corresponding replication file.
+% See more details in Part 1, 2 and 3 of the replication file.
 
 % DESCRIPTION
 % This program solves and simulates a finite period consumption and saving problem. 
@@ -9,7 +9,7 @@
 % Numerical Algorithm
 % The problem is solved by backward induction using the standard method of endogenous grid points.
 % See more numerical details in Part 1 of 
-% https://lumbar-tick-4a3.notion.site/Tutorial-for-the-Endogenous-Grid-Method-c3ac8463386c43d69149984f741fbc25.
+%   https://lumbar-tick-4a3.notion.site/Tutorial-for-the-Endogenous-Grid-Method-c3ac8463386c43d69149984f741fbc25.
 
 %% Step 1: Set up Parameters
 
@@ -57,12 +57,12 @@ for t = 1:T
 
 end
 
-%% Step 3: Solve the Model using Euler Equation
+%% Step 3: Solve the Model using the Endogenous Gridpoints Method
 
 % Step 3.1: Set up the value function and policy function correspondences
 
 % All infomation is stored in a cell variable policy. 
-% In the {1,t}'e entry of policy, it stores a matrix (gridN by 4) that contains the 
+% In the {1,t}'s entry of policy, it stores a matrix (gridN by 4) that contains the 
 % exogenous end-of-period asset grid (a_{t+1}/R), the endogenous start-of-period asset grid points, 
 % the value funcion, and two policy functions in period t.
 

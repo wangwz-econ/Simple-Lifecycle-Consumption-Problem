@@ -70,7 +70,7 @@ r = 0.01;                    % Interest rate
 beta = 0.98;                 % Discount factor
 gamma = 1.5;                 % Coefficient of relative risk aversion
 mu = 0;                      % Log income
-borrowingAllowed = 1;        % Whether borrowing is allowed
+borrowingAllowed = 0;        % Whether borrowing is allowed
 startA = 0;                  % How much assets consumer starts life with
 
 
